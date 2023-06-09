@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"math/rand"
 	"net/http"
 
@@ -29,7 +30,20 @@ func (m *Movie) IsEmpty() bool {
 }
 
 func main() {
+	r := mux.NewRouter()
 
+	// seeding
+	movies = append(movies, Movie{MovieId: "1", MovieName: "Test", TicketPrice: 188, Director: &Director{Fullname: "TestName", Website: "Test website"}})
+
+	r.HandleFunc("/", serveHome).Methods("GET")
+	r.HandleFunc("/movies", getAllMovies).Methods("GET")
+	r.HandleFunc("/movie", addOneMovie).Methods("POST")
+	r.HandleFunc("/movie/{id}", getOneMovie).Methods("GET")
+	r.HandleFunc("/movie/{id}", deleteOneMovie).Methods("DELETE")
+	r.HandleFunc("/movie/{id}", updateOneMovie).Methods("PUT")
+
+	// Listen to Port
+	log.Fatal(http.ListenAndServe(":8000", r))
 }
 
 // Serve home route
@@ -83,7 +97,38 @@ func addOneMovie(w http.ResponseWriter, r *http.Request) {
 
 	movie.MovieId = id
 
-	movies := append(movies, movie)
+	movies = append(movies, movie)
 
-	json.NewEncoder(w).Encode(movies)
+	json.NewEncoder(w).Encode(movie)
+}
+
+func updateOneMovie(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	params := mux.Vars(r)
+
+	for index, val := range movies {
+		if val.MovieId == params["id"] {
+			movies = append(movies[:index], movies[index+1:]...)
+			var movie Movie
+			_ = json.NewDecoder(r.Body).Decode(&movie)
+			movie.MovieId = params["id"]
+			movies = append(movies, movie)
+			json.NewEncoder(w).Encode(movie)
+		}
+	}
+}
+
+func deleteOneMovie(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	params := mux.Vars(r)
+
+	for index, val := range movies {
+		if val.MovieId == params["id"] {
+			movies = append(movies[:index], movies[:index+1]...)
+			return
+		}
+	}
+	json.NewEncoder(w).Encode("Not able to find the id")
 }
